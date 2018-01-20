@@ -1,5 +1,6 @@
 
 import tf
+import math
 import rospy
 import numpy as np
 
@@ -8,22 +9,26 @@ from nav_msgs.msg import OccupancyGrid
 from map_msgs.msg import OccupancyGridUpdate
 
 
-NUM_LASER_POINTS = 30
+NUM_LASER_POINTS = 20
 
 simulated_laser = [.0] * NUM_LASER_POINTS
 
 GRID_WIDTH = None
 GRID_HEIGHT = None
 RESOLUTION = None
-local_costmap = None
+OFF_X = None
+OFF_Y = None
 robot_pose = None
+local_costmap = None
 
 def local_costmap_callback(msg):
-    global GRID_WIDTH, GRID_HEIGHT, RESOLUTION, local_costmap
+    global GRID_WIDTH, GRID_HEIGHT, RESOLUTION, OFF_X, OFF_Y, local_costmap
 
     GRID_WIDTH = msg.info.width
     GRID_HEIGHT = msg.info.height
     RESOLUTION = msg.info.resolution
+    OFF_X = int(math.floor(GRID_WIDTH/2))
+    OFF_Y = int(math.floor(GRID_HEIGHT/2))
     # to matrix shape
     local_costmap = np.reshape(msg.data, (GRID_HEIGHT, GRID_WIDTH))
 
@@ -45,6 +50,7 @@ if __name__ == "__main__":
 
     rospy.init_node("360LaserScanProvider")
 
+
     rospy.Subscriber("/move_base/local_costmap/costmap",
                 OccupancyGrid,
                 local_costmap_callback)
@@ -59,7 +65,7 @@ if __name__ == "__main__":
 
     while not rospy.is_shutdown():
 
-        if robot_pose is not None:
+        if robot_pose is not None and local_costmap is not None:
             euler = tf.transformations.euler_from_quaternion((
                         robot_pose.orientation.x,
                         robot_pose.orientation.y,
@@ -67,8 +73,30 @@ if __name__ == "__main__":
                         robot_pose.orientation.w,
                         ))
 
-            # we need euler[2]
+            robot_angle = euler[2]
 
+            angle_step = math.pi * 2 / NUM_LASER_POINTS
+
+            simulated_laser = [.0] * NUM_LASER_POINTS
+            for step in range(NUM_LASER_POINTS):
+                angle = angle_step * step + robot_angle
+                tan = math.tan(angle)
+
+                for i in range(1, OFF_X):
+                    if angle > math.pi/2 and angle < 3*math.pi/2:
+                        i = -i
+
+                    j = int(round(tan * i))
+                    if abs(j) >= OFF_Y:
+                        break
+
+                    cell = local_costmap[OFF_Y + j][OFF_X + i]
+                    if cell == 100:
+                        obs_dist = math.sqrt(i**2 + j**2)
+                        simulated_laser[step] = int(obs_dist)
+                        break
+
+            print simulated_laser
 
         rate.sleep()
 
