@@ -5,6 +5,7 @@ import rospy
 import numpy as np
 
 from geometry_msgs.msg import Pose
+from sensor_msgs.msg import LaserScan
 from nav_msgs.msg import OccupancyGrid
 from map_msgs.msg import OccupancyGridUpdate
 
@@ -61,8 +62,11 @@ if __name__ == "__main__":
 
     rospy.Subscriber("/robot_pose", Pose, pose_callback)
 
+    scan_pub = rospy.Publisher("/360scan", LaserScan, queue_size=10)
+
     rate = rospy.Rate(10) # 10 hz
 
+    seq_num = 0
     while not rospy.is_shutdown():
 
         if robot_pose is not None and local_costmap is not None:
@@ -92,11 +96,20 @@ if __name__ == "__main__":
 
                     cell = local_costmap[OFF_Y + j][OFF_X + i]
                     if cell == 100:
+                        # TODO compute the distance in cm?
                         obs_dist = math.sqrt(i**2 + j**2)
-                        simulated_laser[step] = int(obs_dist)
+                        simulated_laser[step] = obs_dist
                         break
 
-            print simulated_laser
+            # publish
+            scan = LaserScan()
+            scan.header.seq = seq_num
+            scan.header.stamp = rospy.Time.now()
+            scan.ranges = simulated_laser
+            scan_pub.publish(scan)
+
+            seq_num += 1
+            #print simulated_laser
 
         rate.sleep()
 
