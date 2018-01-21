@@ -10,7 +10,7 @@ from nav_msgs.msg import OccupancyGrid
 from map_msgs.msg import OccupancyGridUpdate
 
 
-NUM_LASER_POINTS = 100
+NUM_LASER_POINTS = 360
 
 simulated_laser = [.0] * NUM_LASER_POINTS
 
@@ -89,14 +89,12 @@ if __name__ == "__main__":
             _angle_max = math.pi * 2
             for step in range(NUM_LASER_POINTS):
                 angle = angle_step * step + robot_angle
-                # bring it bak between 0 and 2*pi
+                # bring it back between 0 and 2*pi
                 angle %= 2*math.pi
                 if step == 0:
                     _angle_min = angle - robot_angle
                 elif step == NUM_LASER_POINTS - 1:
                     _angle_max = angle - robot_angle
-
-
 
                 tan = math.tan(angle)
 
