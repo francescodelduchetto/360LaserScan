@@ -78,6 +78,9 @@ if __name__ == "__main__":
                         ))
 
             robot_angle = euler[2]
+            # bring angle between 0 and 2*pi
+            if robot_angle < 0:
+                robot_angle += 2 * math.pi
 
             angle_step = math.pi * 2 / NUM_LASER_POINTS
 
@@ -86,14 +89,19 @@ if __name__ == "__main__":
             _angle_max = math.pi * 2
             for step in range(NUM_LASER_POINTS):
                 angle = angle_step * step + robot_angle
+                # bring it bak between 0 and 2*pi
+                angle %= 2*math.pi
                 if step == 0:
                     _angle_min = angle - robot_angle
                 elif step == NUM_LASER_POINTS - 1:
                     _angle_max = angle - robot_angle
 
+
+
                 tan = math.tan(angle)
 
                 for i in range(1, OFF_X):
+
                     if angle > math.pi/2 and angle < 3*math.pi/2:
                         i = -i
 
@@ -107,6 +115,9 @@ if __name__ == "__main__":
                         obs_dist *= RESOLUTION # cell units to m units
                         simulated_laser[step] = obs_dist
                         break
+
+                print ">>> ",i, j, angle, tan
+            print _angle_min + robot_angle, _angle_min + angle_step + robot_angle, robot_angle
 
             # publish
             scan = LaserScan()
