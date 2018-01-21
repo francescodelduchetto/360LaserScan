@@ -49,7 +49,7 @@ def pose_callback(msg):
 if __name__ == "__main__":
     # NOTE: assume that the robot is already at the center of the costmap
 
-    rospy.init_node("360LaserScanProvider")
+    rospy.init_node("LaserScan360Provider")
 
 
     rospy.Subscriber("/move_base/local_costmap/costmap",
@@ -62,7 +62,7 @@ if __name__ == "__main__":
 
     rospy.Subscriber("/robot_pose", Pose, pose_callback)
 
-    scan_pub = rospy.Publisher("/360scan", LaserScan, queue_size=10)
+    scan_pub = rospy.Publisher("/scan360", LaserScan, queue_size=10)
 
     rate = rospy.Rate(10) # 10 hz
 
