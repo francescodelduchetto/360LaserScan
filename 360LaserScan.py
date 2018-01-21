@@ -10,7 +10,7 @@ from nav_msgs.msg import OccupancyGrid
 from map_msgs.msg import OccupancyGridUpdate
 
 
-NUM_LASER_POINTS = 20
+NUM_LASER_POINTS = 100
 
 simulated_laser = [.0] * NUM_LASER_POINTS
 
@@ -82,8 +82,15 @@ if __name__ == "__main__":
             angle_step = math.pi * 2 / NUM_LASER_POINTS
 
             simulated_laser = [.0] * NUM_LASER_POINTS
+            _angle_min = .0
+            _angle_max = math.pi * 2
             for step in range(NUM_LASER_POINTS):
                 angle = angle_step * step + robot_angle
+                if step == 0:
+                    _angle_min = angle - robot_angle
+                elif step == NUM_LASER_POINTS - 1:
+                    _angle_max = angle - robot_angle
+
                 tan = math.tan(angle)
 
                 for i in range(1, OFF_X):
@@ -96,15 +103,22 @@ if __name__ == "__main__":
 
                     cell = local_costmap[OFF_Y + j][OFF_X + i]
                     if cell == 100:
-                        # TODO compute the distance in cm?
                         obs_dist = math.sqrt(i**2 + j**2)
+                        obs_dist *= RESOLUTION # cell units to m units
                         simulated_laser[step] = obs_dist
                         break
 
             # publish
             scan = LaserScan()
             scan.header.seq = seq_num
+            scan.header.frame_id = "/base_laser_link"
             scan.header.stamp = rospy.Time.now()
+            scan.angle_min = _angle_min
+            scan.angle_max = _angle_max
+            scan.range_min = .3
+            scan.range_max = max(GRID_WIDTH, GRID_HEIGHT) / 2 * RESOLUTION
+            scan.angle_increment = angle_step
+            scan.time_increment = .0
             scan.ranges = simulated_laser
             scan_pub.publish(scan)
 
