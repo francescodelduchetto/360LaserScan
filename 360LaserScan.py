@@ -1,3 +1,5 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
 
 import tf
 import math
@@ -114,8 +116,8 @@ if __name__ == "__main__":
                         simulated_laser[step] = obs_dist
                         break
 
-                print ">>> ",i, j, angle, tan
-            print _angle_min + robot_angle, _angle_min + angle_step + robot_angle, robot_angle
+#                print ">>> ",i, j, angle, tan
+#            print _angle_min + robot_angle, _angle_min + angle_step + robot_angle, robot_angle
 
             # publish
             scan = LaserScan()
