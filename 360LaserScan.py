@@ -15,6 +15,7 @@ from map_msgs.msg import OccupancyGridUpdate
 NUM_LASER_POINTS = 360
 
 simulated_laser = [.0] * NUM_LASER_POINTS
+# TODO reduce the max range of sim scan
 
 GRID_WIDTH = None
 GRID_HEIGHT = None
@@ -49,7 +50,7 @@ def pose_callback(msg):
 
 
 if __name__ == "__main__":
-    # NOTE: assume that the robot is already at the center of the costmap
+    # NOTE: assume that the robot is already at the cen
 
     rospy.init_node("LaserScan360Provider")
 
@@ -72,14 +73,19 @@ if __name__ == "__main__":
     while not rospy.is_shutdown():
 
         if robot_pose is not None and local_costmap is not None:
+	    # take the robot euler angle
             euler = tf.transformations.euler_from_quaternion((
                         robot_pose.orientation.x,
                         robot_pose.orientation.y,
                         robot_pose.orientation.z,
                         robot_pose.orientation.w,
                         ))
-
             robot_angle = euler[2]
+
+	    # take robot offset w.r.t. the center cell of the costmap
+	    robot_off_x = robot_pose.position.x - (GRID_WIDTH * RESOLUTION / 2)
+	    robot_off_y = robot_pose.position.y - (GRID_HEIGHT * RESOLUTION / 2)
+
             # bring angle between 0 and 2*pi
             if robot_angle < 0:
                 robot_angle += 2 * math.pi
@@ -91,8 +97,9 @@ if __name__ == "__main__":
             _angle_max = math.pi * 2
             for step in range(NUM_LASER_POINTS):
                 angle = angle_step * step + robot_angle
-                # bring it back between 0 and 2*pi
+                # bring it back between 0 and 2*pi after robot angle
                 angle %= 2*math.pi
+		# save min/max agles
                 if step == 0:
                     _angle_min = angle - robot_angle
                 elif step == NUM_LASER_POINTS - 1:
@@ -111,7 +118,10 @@ if __name__ == "__main__":
 
                     cell = local_costmap[OFF_Y + j][OFF_X + i]
                     if cell == 100:
-                        obs_dist = math.sqrt(i**2 + j**2)
+			# remove the robot offset w.r.t. the costmap center
+			dist_x = i - robot_off_x
+			dist_y = j - robot_off_y
+                        obs_dist = math.sqrt(dist_x**2 + dist_y**2)
                         obs_dist *= RESOLUTION # cell units to m units
                         simulated_laser[step] = obs_dist
                         break
