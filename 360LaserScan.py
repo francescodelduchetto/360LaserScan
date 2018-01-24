@@ -1,6 +1,8 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
+# NOTE = increasing and decreasing the resolution of the costamp has a huge effect on this node
+
 import tf
 import math
 import rospy
@@ -13,12 +15,14 @@ from map_msgs.msg import OccupancyGridUpdate
 
 
 NUM_LASER_POINTS = 360
+MAX_LASER_RANGE = 1 # [m] -  None for unlimited
 
 simulated_laser = [.0] * NUM_LASER_POINTS
-# TODO reduce the max range of sim scan
 
 GRID_WIDTH = None
 GRID_HEIGHT = None
+GRID_ORIG_X = None
+GRID_ORIG_Y = None
 RESOLUTION = None
 OFF_X = None
 OFF_Y = None
@@ -26,8 +30,10 @@ robot_pose = None
 local_costmap = None
 
 def local_costmap_callback(msg):
-    global GRID_WIDTH, GRID_HEIGHT, RESOLUTION, OFF_X, OFF_Y, local_costmap
+    global GRID_ORIG_X, GRID_ORIG_Y, GRID_WIDTH, GRID_HEIGHT, RESOLUTION, OFF_X, OFF_Y, local_costmap
 
+    GRID_ORIG_X = msg.info.origin.position.x
+    GRID_ORIG_Y = msg.info.origin.position.y
     GRID_WIDTH = msg.info.width
     GRID_HEIGHT = msg.info.height
     RESOLUTION = msg.info.resolution
@@ -83,22 +89,24 @@ if __name__ == "__main__":
             robot_angle = euler[2]
 
 	    # take robot offset w.r.t. the center cell of the costmap
-	    robot_off_x = robot_pose.position.x - (GRID_WIDTH * RESOLUTION / 2)
-	    robot_off_y = robot_pose.position.y - (GRID_HEIGHT * RESOLUTION / 2)
+	    map_center_x = GRID_ORIG_X + (GRID_WIDTH / 2 * RESOLUTION)
+	    map_center_y = GRID_ORIG_Y + (GRID_HEIGHT / 2 * RESOLUTION)
+	    robot_off_x = robot_pose.position.x - map_center_x
+	    robot_off_y = robot_pose.position.y - map_center_y
 
             # bring angle between 0 and 2*pi
             if robot_angle < 0:
-                robot_angle += 2 * math.pi
+                robot_angle += 2. * math.pi
 
-            angle_step = math.pi * 2 / NUM_LASER_POINTS
+            angle_step = math.pi * 2. / NUM_LASER_POINTS
 
             simulated_laser = [.0] * NUM_LASER_POINTS
             _angle_min = .0
-            _angle_max = math.pi * 2
+            _angle_max = math.pi * 2.
             for step in range(NUM_LASER_POINTS):
                 angle = angle_step * step + robot_angle
                 # bring it back between 0 and 2*pi after robot angle
-                angle %= 2*math.pi
+                angle %= 2.*math.pi
 		# save min/max agles
                 if step == 0:
                     _angle_min = angle - robot_angle
@@ -109,7 +117,7 @@ if __name__ == "__main__":
 
                 for i in range(1, OFF_X):
 
-                    if angle > math.pi/2 and angle < 3*math.pi/2:
+                    if angle > math.pi/2. and angle < 3.*math.pi/2.:
                         i = -i
 
                     j = int(round(tan * i))
@@ -119,15 +127,12 @@ if __name__ == "__main__":
                     cell = local_costmap[OFF_Y + j][OFF_X + i]
                     if cell == 100:
 			# remove the robot offset w.r.t. the costmap center
-			dist_x = i - robot_off_x
-			dist_y = j - robot_off_y
-                        obs_dist = math.sqrt(dist_x**2 + dist_y**2)
-                        obs_dist *= RESOLUTION # cell units to m units
+			dist_x = i * RESOLUTION - robot_off_x
+			dist_y = j * RESOLUTION - robot_off_y
+                        obs_dist = math.sqrt(dist_x**2. + dist_y**2.)
+                        #obs_dist *= RESOLUTION # cell units to m units
                         simulated_laser[step] = obs_dist
                         break
-
-#                print ">>> ",i, j, angle, tan
-#            print _angle_min + robot_angle, _angle_min + angle_step + robot_angle, robot_angle
 
             # publish
             scan = LaserScan()
@@ -137,7 +142,10 @@ if __name__ == "__main__":
             scan.angle_min = _angle_min
             scan.angle_max = _angle_max
             scan.range_min = .3
-            scan.range_max = max(GRID_WIDTH, GRID_HEIGHT) / 2 * RESOLUTION
+	    if MAX_LASER_RANGE is None:
+	            scan.range_max = max(GRID_WIDTH, GRID_HEIGHT) / 2 * RESOLUTION
+	    else:
+	            scan.range_max = MAX_LASER_RANGE
             scan.angle_increment = angle_step
             scan.time_increment = .0
             scan.ranges = simulated_laser
