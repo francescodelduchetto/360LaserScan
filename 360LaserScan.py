@@ -137,7 +137,7 @@ if __name__ == "__main__":
             # publish
             scan = LaserScan()
             scan.header.seq = seq_num
-            scan.header.frame_id = "/base_laser_link"
+            scan.header.frame_id = "/base_link"
             scan.header.stamp = rospy.Time.now()
             scan.angle_min = _angle_min
             scan.angle_max = _angle_max
