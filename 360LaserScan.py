@@ -11,6 +11,7 @@ import numpy as np
 from geometry_msgs.msg import Pose
 from sensor_msgs.msg import LaserScan
 from nav_msgs.msg import OccupancyGrid
+from std_msgs.msg import MultiArrayLayout, MultiArrayDimension, Float64MultiArray
 from map_msgs.msg import OccupancyGridUpdate
 
 
@@ -72,6 +73,8 @@ if __name__ == "__main__":
     rospy.Subscriber("/robot_pose", Pose, pose_callback)
 
     scan_pub = rospy.Publisher("/scan360", LaserScan, queue_size=10)
+
+    costmap_pub = rospy.Publisher("/local_costmap", Float64MultiArray, queue_size=10)
 
     rate = rospy.Rate(10) # 10 hz
 
@@ -150,6 +153,24 @@ if __name__ == "__main__":
             scan.time_increment = .0
             scan.ranges = simulated_laser
             scan_pub.publish(scan)
+
+            #### publish the costmap
+            dim1 = MultiArrayDimension()
+            dim1.label = "height"
+            dim1.size = GRID_HEIGHT
+            dim1.stride = GRID_HEIGHT * GRID_WIDTH
+            dim2 = MultiArrayDimension()
+            dim2.label = "width"
+            dim2.size = GRID_WIDTH
+            dim2.stride = GRID_WIDTH
+            dimentions = [dim1, dim2]
+            layout = MultiArrayLayout()
+            layout.dim = dimentions
+            layout.data_offset = 0
+            array = Float64MultiArray()
+            array.layout = layout
+            array.data = local_costmap.flatten().tolist()
+            costmap_pub.publish(array)
 
             seq_num += 1
             #print simulated_laser
