@@ -82,7 +82,7 @@ if __name__ == "__main__":
     while not rospy.is_shutdown():
 
         if robot_pose is not None and local_costmap is not None:
-        # take the robot euler angle
+            # take the robot euler angle
             euler = tf.transformations.euler_from_quaternion((
                         robot_pose.orientation.x,
                         robot_pose.orientation.y,
@@ -91,90 +91,90 @@ if __name__ == "__main__":
                         ))
             robot_angle = euler[2]
 
-        # take robot offset w.r.t. the center cell of the costmap
-        map_center_x = GRID_ORIG_X + (GRID_WIDTH / 2 * RESOLUTION)
-        map_center_y = GRID_ORIG_Y + (GRID_HEIGHT / 2 * RESOLUTION)
-        robot_off_x = robot_pose.position.x - map_center_x
-        robot_off_y = robot_pose.position.y - map_center_y
+            # take robot offset w.r.t. the center cell of the costmap
+            map_center_x = GRID_ORIG_X + (GRID_WIDTH / 2 * RESOLUTION)
+            map_center_y = GRID_ORIG_Y + (GRID_HEIGHT / 2 * RESOLUTION)
+            robot_off_x = robot_pose.position.x - map_center_x
+            robot_off_y = robot_pose.position.y - map_center_y
 
-        # bring angle between 0 and 2*pi
-        if robot_angle < 0:
-            robot_angle += 2. * math.pi
+            # bring angle between 0 and 2*pi
+            if robot_angle < 0:
+                robot_angle += 2. * math.pi
 
-        angle_step = math.pi * 2. / NUM_LASER_POINTS
+            angle_step = math.pi * 2. / NUM_LASER_POINTS
 
-        simulated_laser = [.0] * NUM_LASER_POINTS
-        _angle_min = .0
-        _angle_max = math.pi * 2.
-        for step in range(NUM_LASER_POINTS):
-            angle = angle_step * step + robot_angle
-            # bring it back between 0 and 2*pi after robot angle
-            angle %= 2.*math.pi
-            # save min/max agles
-            if step == 0:
-                _angle_min = angle - robot_angle
-            elif step == NUM_LASER_POINTS - 1:
-                _angle_max = angle - robot_angle
+            simulated_laser = [.0] * NUM_LASER_POINTS
+            _angle_min = .0
+            _angle_max = math.pi * 2.
+            for step in range(NUM_LASER_POINTS):
+                angle = angle_step * step + robot_angle
+                # bring it back between 0 and 2*pi after robot angle
+                angle %= 2.*math.pi
+                # save min/max agles
+                if step == 0:
+                    _angle_min = angle - robot_angle
+                elif step == NUM_LASER_POINTS - 1:
+                    _angle_max = angle - robot_angle
 
-            tan = math.tan(angle)
+                tan = math.tan(angle)
 
-            for i in range(1, OFF_X):
+                for i in range(1, OFF_X):
 
-                if angle > math.pi/2. and angle < 3.*math.pi/2.:
-                    i = -i
+                    if angle > math.pi/2. and angle < 3.*math.pi/2.:
+                        i = -i
 
-                j = int(round(tan * i))
-                if abs(j) >= OFF_Y:
-                    break
+                    j = int(round(tan * i))
+                    if abs(j) >= OFF_Y:
+                        break
 
-                cell = local_costmap[OFF_Y + j][OFF_X + i]
-                if cell == 100:
-                    # remove the robot offset w.r.t. the costmap center
-                    dist_x = i * RESOLUTION - robot_off_x
-                    dist_y = j * RESOLUTION - robot_off_y
-                    obs_dist = math.sqrt(dist_x**2. + dist_y**2.)
-                    #obs_dist *= RESOLUTION # cell units to m units
-                    simulated_laser[step] = obs_dist
-                    break
+                    cell = local_costmap[OFF_Y + j][OFF_X + i]
+                    if cell == 100:
+                        # remove the robot offset w.r.t. the costmap center
+                        dist_x = i * RESOLUTION - robot_off_x
+                        dist_y = j * RESOLUTION - robot_off_y
+                        obs_dist = math.sqrt(dist_x**2. + dist_y**2.)
+                        #obs_dist *= RESOLUTION # cell units to m units
+                        simulated_laser[step] = obs_dist
+                        break
 
-            # publish
-            scan = LaserScan()
-            scan.header.seq = seq_num
-            scan.header.frame_id = "/base_link"
-            scan.header.stamp = rospy.Time.now()
-            scan.angle_min = _angle_min
-            scan.angle_max = _angle_max
-            scan.range_min = .3
-            if MAX_LASER_RANGE is None:
-                    scan.range_max = max(GRID_WIDTH, GRID_HEIGHT) / 2 * RESOLUTION
-            else:
-                    scan.range_max = MAX_LASER_RANGE
-            scan.angle_increment = angle_step
-            scan.time_increment = .0
-            scan.ranges = simulated_laser
-            scan_pub.publish(scan)
+                # publish
+                scan = LaserScan()
+                scan.header.seq = seq_num
+                scan.header.frame_id = "/base_link"
+                scan.header.stamp = rospy.Time.now()
+                scan.angle_min = _angle_min
+                scan.angle_max = _angle_max
+                scan.range_min = .3
+                if MAX_LASER_RANGE is None:
+                        scan.range_max = max(GRID_WIDTH, GRID_HEIGHT) / 2 * RESOLUTION
+                else:
+                        scan.range_max = MAX_LASER_RANGE
+                scan.angle_increment = angle_step
+                scan.time_increment = .0
+                scan.ranges = simulated_laser
+                scan_pub.publish(scan)
 
-            #### publish the costmap
-            dim1 = MultiArrayDimension()
-            dim1.label = "height"
-            dim1.size = GRID_HEIGHT
-            dim1.stride = GRID_HEIGHT * GRID_WIDTH
-            dim2 = MultiArrayDimension()
-            dim2.label = "width"
-            dim2.size = GRID_WIDTH
-            dim2.stride = GRID_WIDTH
-            dimentions = [dim1, dim2]
-            layout = MultiArrayLayout()
-            layout.dim = dimentions
-            layout.data_offset = 0
-            array = Float64MultiArray()
-            array.layout = layout
-            array.data = local_costmap.flatten().tolist()
-            costmap_pub.publish(array)
+                #### publish the costmap
+                dim1 = MultiArrayDimension()
+                dim1.label = "height"
+                dim1.size = GRID_HEIGHT
+                dim1.stride = GRID_HEIGHT * GRID_WIDTH
+                dim2 = MultiArrayDimension()
+                dim2.label = "width"
+                dim2.size = GRID_WIDTH
+                dim2.stride = GRID_WIDTH
+                dimentions = [dim1, dim2]
+                layout = MultiArrayLayout()
+                layout.dim = dimentions
+                layout.data_offset = 0
+                array = Float64MultiArray()
+                array.layout = layout
+                array.data = local_costmap.flatten().tolist()
+                costmap_pub.publish(array)
 
-            seq_num += 1
-            #print simulated_laser
+                seq_num += 1
+                #print simulated_laser
 
         rate.sleep()
 
-    rospy.spin()
+    # rospy.spin()
